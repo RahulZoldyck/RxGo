@@ -4,36 +4,50 @@ import (
 	"testing"
 
 	"github.com/reactivex/rxgo/errors"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestOf(t *testing.T) {
-	// Of something test
-	some1 := Of("foo")
-	got, err := some1.Get()
-
-	assert.False(t, some1.IsEmpty())
-	assert.Nil(t, err)
-	assert.Exactly(t, got, "foo")
+func TestOptional(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Optional Suite")
 }
 
-func TestOfEmpty(t *testing.T) {
-	some := Of(nil)
-	got, err := some.Get()
+var _ = Describe("Optional", func() {
+	Context("when using non empty optional", func() {
+		It("has not nil data", func() {
+			testData := "foo"
+			some1 := Of(testData)
+			got, err := some1.Get()
 
-	assert.False(t, some.IsEmpty())
-	assert.Nil(t, err)
-	assert.Exactly(t, got, nil)
-}
+			Expect(some1.IsEmpty()).NotTo(BeTrue())
+			Expect(err).Should(BeNil())
+			Expect(got).Should(Equal(testData))
+		})
+		It("has nil data", func() {
+			some1 := Of(nil)
+			got, err := some1.Get()
 
-func TestEmpty(t *testing.T) {
-	empty := Empty()
-	got, err := empty.Get()
-	assert.True(t, empty.IsEmpty())
-	if err != nil {
-		assert.Exactly(t, errors.New(errors.NoSuchElementError), err)
-	} else {
-		assert.Fail(t, "error is not nil")
-	}
-	assert.Exactly(t, got, nil)
-}
+			Expect(some1.IsEmpty()).NotTo(BeTrue())
+			Expect(err).Should(BeNil())
+			Expect(got).Should(BeNil())
+		})
+	})
+
+	Context("when using Empty Optional", func() {
+		It("has empty as the optional", func() {
+			empty := Empty()
+			got, err := empty.Get()
+
+			Expect(empty.IsEmpty()).Should(BeTrue())
+			if err != nil {
+				expectedErr := errors.New(errors.NoSuchElementError)
+				Expect(err.Error()).Should(Equal(expectedErr.Error()))
+			} else {
+				Fail("error is not nil")
+			}
+			Expect(got).Should(BeNil())
+		})
+	})
+
+})

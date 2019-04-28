@@ -3,11 +3,12 @@ package errors
 import (
 	"fmt"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "../matchers"
 )
 
-var errcodes = []ErrorCode{
+var testErrCodes = []ErrorCode{
 	EndOfIteratorError,
 	HandlerError,
 	ObservableError,
@@ -16,45 +17,59 @@ var errcodes = []ErrorCode{
 	UndefinedError,
 }
 
-func TestErrorCodes(t *testing.T) {
-	for i, errcode := range errcodes {
-		assert.Equal(t, ErrorCode(i+1), errcode)
-	}
+func TestErrors(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Errors Suite")
 }
 
-func TestBaseErrorImplementsError(t *testing.T) {
-	for _, errcode := range errcodes {
-		err := New(errcode)
-		assert.Implements(t, (*error)(nil), err)
-	}
-}
+var _ = Describe("Base Error", func() {
+	Context("when creating error", func() {
 
-func TestBaseErrorWithDefaultMessage(t *testing.T) {
-	for _, errcode := range errcodes {
-		err := New(errcode)
-		assert.Equal(t, err.code.String(), err.message)
-	}
-}
+		It("should implements error interface", func() {
+			Expect(New(EndOfIteratorError)).Should(Implements((*error)(nil)))
+		})
 
-func TestBaseErrorWithCustomMessage(t *testing.T) {
-	msg := "Custom error message"
-	for _, errcode := range errcodes {
-		err := New(errcode, msg)
-		assert.Equal(t, msg, err.message)
-	}
-}
+	})
 
-func TestErrorMethod(t *testing.T) {
-	for i, errcode := range errcodes {
-		err := New(errcode)
-		msg := fmt.Sprintf("%d - %s", i+1, err.code.String())
-		assert.Equal(t, msg, err.Error())
-	}
-}
+	Context("when getting error message from Error function", func() {
+		It("has no custom message", func() {
+			got := New(EndOfIteratorError)
+			expectedErrorMsg := fmt.Sprintf("%d - %s", EndOfIteratorError, EndOfIteratorError.String())
+			Expect(got.Error()).Should(Equal(expectedErrorMsg))
+		})
 
-func TestCodeMethod(t *testing.T) {
-	for i, errcode := range errcodes {
-		err := New(errcode)
-		assert.EqualValues(t, i+1, err.Code())
-	}
-}
+		It("has 1 custom message", func() {
+			msg := "Custom Message"
+			got := New(EndOfIteratorError, msg)
+			expectedErrorMsg := fmt.Sprintf("%d - %s", EndOfIteratorError, msg)
+			Expect(got.Error()).Should(Equal(expectedErrorMsg))
+		})
+
+		It("has more than 1 custom message", func() {
+			msg1 := "Message 1"
+			msg2 := "Message 2"
+			got := New(EndOfIteratorError, msg1, msg2)
+			expectedErrorMsg := fmt.Sprintf("%d - %s", EndOfIteratorError, msg2)
+			Expect(got.Error()).Should(Equal(expectedErrorMsg))
+		})
+
+	})
+
+	Context("when getting error code from Code function", func() {
+		It("has error code in testErrCodes", func() {
+			for _, errCode := range testErrCodes {
+				got := New(errCode)
+				Expect(got.Code()).Should(Equal(int(errCode)))
+			}
+		})
+	})
+})
+
+var _ = Describe("Error Code String", func() {
+	It("when the error code is converted into string", func() {
+		Expect(EndOfIteratorError.String()).Should(Equal("EndOfIteratorError"))
+	})
+	It("when error code exceeds the normal set of Errors", func() {
+		Expect(CancelledIteratorError.String()).Should(Equal("ErrorCode(10)"))
+	})
+})

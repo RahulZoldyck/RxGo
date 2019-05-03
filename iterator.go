@@ -1,7 +1,6 @@
 package rxgo
 
 import (
-	"context"
 
 	"github.com/reactivex/rxgo/errors"
 )
@@ -13,27 +12,28 @@ type Iterator interface {
 
 type iteratorFromChannel struct {
 	ch         chan interface{}
-	ctx        context.Context
-	cancelFunc context.CancelFunc
+	done 		chan interface{}
 }
 
 type iteratorFromRange struct {
-	current int
-	end     int // Included
+	current     int
+	end         int // Included
+	isCancelled bool
 }
 
 type iteratorFromSlice struct {
-	index int
-	s     []interface{}
+	index       int
+	s           []interface{}
+	isCancelled bool
 }
 
 func (it *iteratorFromChannel) cancel() {
-	it.cancelFunc()
+	it.done <- "cancel"
 }
 
 func (it *iteratorFromChannel) Next() (interface{}, error) {
 	select {
-	case <-it.ctx.Done():
+	case <-it.done:
 		return nil, errors.New(errors.CancelledIteratorError)
 	case next, ok := <-it.ch:
 		if ok {
@@ -44,10 +44,13 @@ func (it *iteratorFromChannel) Next() (interface{}, error) {
 }
 
 func (it *iteratorFromRange) cancel() {
-	// TODO
+	it.isCancelled = true
 }
 
 func (it *iteratorFromRange) Next() (interface{}, error) {
+	if it.isCancelled {
+		return nil, errors.New(errors.CancelledIteratorError)
+	}
 	it.current++
 	if it.current <= it.end {
 		return it.current, nil
@@ -56,10 +59,13 @@ func (it *iteratorFromRange) Next() (interface{}, error) {
 }
 
 func (it *iteratorFromSlice) cancel() {
-	// TODO
+	it.isCancelled = true
 }
 
 func (it *iteratorFromSlice) Next() (interface{}, error) {
+	if it.isCancelled {
+		return nil, errors.New(errors.CancelledIteratorError)
+	}
 	it.index++
 	if it.index < len(it.s) {
 		return it.s[it.index], nil
@@ -68,24 +74,24 @@ func (it *iteratorFromSlice) Next() (interface{}, error) {
 }
 
 func newIteratorFromChannel(ch chan interface{}) Iterator {
-	ctx, cancel := context.WithCancel(context.Background())
 	return &iteratorFromChannel{
 		ch:         ch,
-		ctx:        ctx,
-		cancelFunc: cancel,
+		done:        make(chan interface{},1),
 	}
 }
 
 func newIteratorFromRange(start, end int) Iterator {
 	return &iteratorFromRange{
-		current: start,
-		end:     end,
+		current:     start,
+		end:         end,
+		isCancelled: false,
 	}
 }
 
 func newIteratorFromSlice(s []interface{}) Iterator {
 	return &iteratorFromSlice{
-		index: -1,
-		s:     s,
+		index:       -1,
+		s:           s,
+		isCancelled: false,
 	}
 }
